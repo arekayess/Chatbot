@@ -1,6 +1,8 @@
 import logging
-from telegram import (Update, InlineKeyboardButton, InlineKeyboardMarkup)
-from telegram.ext import (Application, CommandHandler, CallbackQueryHandler, ContextTypes)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+)
 
 # === Настройки ===
 BOT_TOKEN = '8188612626:AAFplAo1fUxgdcB3wu5pEfPVot3fwgWCTWY'
@@ -13,7 +15,7 @@ WELCOME_TEXT = (
 )
 
 CABINET_TEXT = (
-    "Если у Вас возникли вопросы по поводу вашего личного кабинета,\n"
+    "Если У Вас возникли вопросы по поводу вашего личного кабинета,\n"
     "Вы можете обратиться по номеру технического отдела: +7 (999) 123-45-67"
 )
 
@@ -51,10 +53,12 @@ def finance_menu():
 # === Обработка /start ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=WELCOME_TEXT, reply_markup=main_menu())
+    await update.message.reply_text(WELCOME_TEXT, reply_markup=main_menu())
 
-    # лог в тг админ
-    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"📥 Новый пользователь: @{user.username or user.first_name} ({user.id}) запустил бота")
+    await context.bot.send_message(
+        chat_id=ADMIN_CHAT_ID,
+        text=f"📥 Новый пользователь: @{user.username or user.first_name} ({user.id}) запустил бота"
+    )
 
 # === Обработка кнопок ===
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,28 +67,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     user = query.from_user
 
-    log_text = f"👆 @{user.username or user.first_name} нажал кнопку: {data}"
-    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=log_text)
+    await context.bot.send_message(
+        chat_id=ADMIN_CHAT_ID,
+        text=f"👆 @{user.username or user.first_name} нажал кнопку: {data}"
+    )
 
     if data == "finance":
         await query.edit_message_text("Выберите категорию:", reply_markup=finance_menu())
-
     elif data == "cabinet":
         await query.edit_message_text(CABINET_TEXT, reply_markup=main_menu())
-
     elif data == "vklady":
         await query.edit_message_text(VKLADY_TEXT, reply_markup=finance_menu())
-
     elif data == "osago":
         await query.edit_message_text(OSAGO_TEXT, reply_markup=finance_menu())
-
     elif data == "credit":
         await query.edit_message_text(CREDIT_TEXT, reply_markup=finance_menu())
-
     elif data == "back":
         await query.edit_message_text("Выберите действие:", reply_markup=main_menu())
 
-# === Команда для админа: отправка сообщений пользователям ===
+# === Команда для админа: отправка сообщений ===
 async def admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id != ADMIN_CHAT_ID:
@@ -99,10 +100,10 @@ async def admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
-# === Запуск ===
-def main():
+# === Точка входа ===
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_callback))
@@ -110,6 +111,3 @@ def main():
 
     print("Бот запущен...")
     app.run_polling()
-
-if __name__ == '__main__':
-    main()
