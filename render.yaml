@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: telegram-bot
+    name: botchat
     env: python
     buildCommand: ""
     startCommand: python bot.py
