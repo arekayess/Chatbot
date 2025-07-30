@@ -1,9 +1,9 @@
 services:
-  - type: worker
+  - type: web
     name: Chatbot
     env: python
     plan: free
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: python Chatbot.py
+    startCommand: python bot.py
     environment:
       pythonVersion: 3.10.13
