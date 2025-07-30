@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: botchat
+    name: Chatbot
     env: python
-    buildCommand: ""
-    startCommand: python bot.py
-    autoDeploy: true
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python Chatbot.py
+    environment:
+      pythonVersion: 3.10.12
