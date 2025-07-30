@@ -1,21 +1,22 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
 )
 
-# === Настройки ===
-BOT_TOKEN = '8188612626:AAFplAo1fUxgdcB3wu5pEfPVot3fwgWCTWY'
-ADMIN_CHAT_ID = 7742758052  # <-- замени на свой Telegram ID
+BOT_TOKEN = "8188612626:AAFplAo1fUxgdcB3wu5pEfPVot3fwgWCTWY"
+ADMIN_CHAT_ID = 7742758052  # <-- замени на свой ID
 
-# === Тексты ===
 WELCOME_TEXT = (
     "Привет, на связи ассистент Финуслуг!\n"
     "Задайте вопрос или используйте кнопки, чтобы узнать больше 🔎"
 )
 
 CABINET_TEXT = (
-    "Если У Вас возникли вопросы по поводу вашего личного кабинета,\n"
+    "Если у Вас возникли вопросы по поводу вашего личного кабинета,\n"
     "Вы можете обратиться по номеру технического отдела: +7 (999) 123-45-67"
 )
 
@@ -35,7 +36,6 @@ CREDIT_TEXT = (
     "Заполните анкету и мы подберем кредиты с подходящими ставками."
 )
 
-# === Кнопки ===
 def main_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💰 Финансовые вопросы", callback_data="finance")],
@@ -50,17 +50,14 @@ def finance_menu():
         [InlineKeyboardButton("🔙 Вернуться назад", callback_data="back")],
     ])
 
-# === Обработка /start ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text(WELCOME_TEXT, reply_markup=main_menu())
-
     await context.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
         text=f"📥 Новый пользователь: @{user.username or user.first_name} ({user.id}) запустил бота"
     )
 
-# === Обработка кнопок ===
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -85,7 +82,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "back":
         await query.edit_message_text("Выберите действие:", reply_markup=main_menu())
 
-# === Команда для админа: отправка сообщений ===
 async def admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id != ADMIN_CHAT_ID:
@@ -100,8 +96,7 @@ async def admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
-# === Точка входа ===
-if __name__ == '__main__':
+async def main():
     logging.basicConfig(level=logging.INFO)
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -109,5 +104,9 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(CommandHandler("msg", admin_message))
 
-    print("Бот запущен...")
-    app.run_polling()
+    print("🤖 Бот запущен...")
+    await app.run_polling()
+
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())
