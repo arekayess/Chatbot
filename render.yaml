@@ -1,5 +1,5 @@
 services:
-  - type: web
+  - type: worker
     name: Chatbot
     env: python
     plan: free
