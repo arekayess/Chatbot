@@ -1,109 +1,91 @@
+import os
 import logging
-import asyncio
-import threading
 from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-)
-from telegram.error import BadRequest
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
+import nest_asyncio
+import asyncio
 
-BOT_TOKEN = "8188612626:AAFplAo1fUxgdcB3wu5pEfPVot3fwgWCTWY"
-ADMIN_CHAT_ID = 7742758052
+# Настройки логгера
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# --- Тексты и меню ---
-WELCOME_TEXT = "Привет, на связи ассистент Финуслуг!\nЗадайте вопрос или используйте кнопки, чтобы узнать больше 🔎"
-CABINET_TEXT = "Если у Вас возникли вопросы по поводу вашего личного кабинета,\nВы можете обратиться по номеру технического отдела: +7 (999) 123-45-67"
-VKLADY_TEXT = "У нас есть 824 предложений от надежных банков... доходность до 30%."
-OSAGO_TEXT = "Полис ОСАГО за 5 минут... от 21 страховой компании."
-CREDIT_TEXT = "Заполните анкету и мы подберем кредиты..."
+# Flask-приложение
+app = Flask(__name__)
 
-def main_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💰 Финансовые вопросы", callback_data="finance")],
-        [InlineKeyboardButton("👤 Личный кабинет", callback_data="cabinet")],
-    ])
+@app.route('/')
+def index():
+    return '🤖 Бот работает!'
 
-def finance_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🪙 Вклады", callback_data="vklady")],
-        [InlineKeyboardButton("🚗 ОСАГО", callback_data="osago")],
-        [InlineKeyboardButton("💳 Кредиты", callback_data="credit")],
-        [InlineKeyboardButton("🔙 Вернуться назад", callback_data="back")],
-    ])
-
+# Телеграм бот: приветствие
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    await update.message.reply_text(WELCOME_TEXT, reply_markup=main_menu())
-    await context.bot.send_message(
-        chat_id=ADMIN_CHAT_ID,
-        text=f"📥 Новый пользователь: @{user.username or user.first_name} ({user.id})"
+    keyboard = [
+        [InlineKeyboardButton("Финансовые вопросы", callback_data="finance")],
+        [InlineKeyboardButton("Личный кабинет", callback_data="account")]
+    ]
+    await update.message.reply_text(
+        "Привет, на связи ассистент Финуслуг! Задайте вопрос или используйте кнопки, чтобы узнать больше 🔎",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Обработка кнопок
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    user = query.from_user
-    await context.bot.send_message(
-        chat_id=ADMIN_CHAT_ID,
-        text=f"👆 @{user.username or user.first_name} нажал кнопку: {data}"
-    )
 
-    try:
-        if data == "finance":
-            await query.edit_message_text("Выберите категорию:", reply_markup=finance_menu())
-        elif data == "cabinet":
-            await query.edit_message_text(CABINET_TEXT, reply_markup=main_menu())
-        elif data == "vklady":
-            await query.edit_message_text(VKLADY_TEXT, reply_markup=finance_menu())
-        elif data == "osago":
-            await query.edit_message_text(OSAGO_TEXT, reply_markup=finance_menu())
-        elif data == "credit":
-            await query.edit_message_text(CREDIT_TEXT, reply_markup=finance_menu())
-        elif data == "back":
-            await query.edit_message_text("Выберите действие:", reply_markup=main_menu())
-    except BadRequest as e:
-        if "Message is not modified" not in str(e):
-            raise
+    if data == "finance":
+        keyboard = [
+            [InlineKeyboardButton("Вклады", callback_data="deposit")],
+            [InlineKeyboardButton("ОСАГО", callback_data="osago")],
+            [InlineKeyboardButton("Кредиты", callback_data="credit")],
+            [InlineKeyboardButton("🔙 Вернуться назад", callback_data="back_main")]
+        ]
+        await query.edit_message_text("Выберите интересующий вас вопрос:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if user.id != ADMIN_CHAT_ID:
-        await update.message.reply_text("⛔ У вас нет доступа.")
+    elif data == "account":
+        await query.edit_message_text("Если у Вас возникли вопросы по поводу вашего личного кабинета…")
+
+    elif data == "deposit":
+        await query.edit_message_text("У нас есть 824 предложений от надежных банков…")
+
+    elif data == "osago":
+        await query.edit_message_text("Полис ОСАГО за 5 минут…")
+
+    elif data == "credit":
+        await query.edit_message_text("Заполните анкету и мы подберем кредиты…")
+
+    elif data == "back_main":
+        keyboard = [
+            [InlineKeyboardButton("Финансовые вопросы", callback_data="finance")],
+            [InlineKeyboardButton("Личный кабинет", callback_data="account")]
+        ]
+        await query.edit_message_text("Привет, на связи ассистент Финуслуг! Задайте вопрос или используйте кнопки, чтобы узнать больше 🔎",
+                                      reply_markup=InlineKeyboardMarkup(keyboard))
+
+# Инициализация телеграм-бота
+async def start_bot():
+    token = os.getenv("BOT_TOKEN")  # Обязательно установи переменную окружения в Render
+
+    if not token:
+        logger.error("Переменная окружения BOT_TOKEN не установлена!")
         return
-    try:
-        target_id = int(context.args[0])
-        text_to_send = ' '.join(context.args[1:])
-        await context.bot.send_message(chat_id=target_id, text=text_to_send)
-        await update.message.reply_text("✅ Сообщение отправлено.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
 
-async def run_bot():
-    logging.basicConfig(level=logging.INFO)
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app_telegram = ApplicationBuilder().token(token).build()
+    app_telegram.add_handler(CommandHandler("start", start))
+    app_telegram.add_handler(CallbackQueryHandler(button_handler))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(CommandHandler("msg", admin_message))
+    logger.info("🤖 Бот запущен...")
+    await app_telegram.initialize()
+    await app_telegram.start()
+    await app_telegram.updater.start_polling()
 
-    print("🤖 Бот запущен...")
-    await app.run_polling()
+# Запуск Flask и Telegram
+if __name__ == "__main__":
+    nest_asyncio.apply()  # Исправляем конфликт asyncio в Flask + PTB
 
-# --- Flask-заглушка для Render ---
-flask_app = Flask(__name__)
+    loop = asyncio.get_event_loop()
+    loop.create_task(start_bot())
 
-@flask_app.route('/')
-def home():
-    return "Бот работает!"
-
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=10000)
-
-if __name__ == '__main__':
-    threading.Thread(target=run_flask).start()  # Flask заглушка
-    asyncio.run(run_bot())   
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
